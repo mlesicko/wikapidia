@@ -8,6 +8,7 @@ public class CosimilarityTester {
     private static String s3 = "horse"; //Appears in both
 
     public static void main(String[] args){
+        long start = System.currentTimeMillis();
         for (String book : books){
             FileBuffer.read(book);
             FileBuffer.writeToFile("out-"+book);
@@ -18,7 +19,6 @@ public class CosimilarityTester {
         for (String book: books){
            matrix.addWords("out-"+book);
            System.out.println(book+" read");
-           System.out.println(matrix.getWords().size());
         }
         matrix.buildMatrix();
         System.out.println("Matrix built");
@@ -26,6 +26,7 @@ public class CosimilarityTester {
         System.out.println(matrix.sr(s1,s3));
         System.out.println(matrix.sr(s2,s3));
 
+        System.out.println("Took "+((System.currentTimeMillis()-start)/60000)+" minutes");
 
     }
 }

@@ -36,6 +36,10 @@ public class CosimilarityMatrix{
         }
     }
 
+    /**
+     * Add new words to the set from a file
+     * @param file
+     */
     public void addWords(String file){
         BufferedReader reader = null;
         try{
@@ -45,10 +49,7 @@ public class CosimilarityMatrix{
             while ((line = reader.readLine()) != null) {
                 String[] pieces = line.split(" ");
                 for (String piece : pieces){
-                    String cleaned = clean(piece);
-                    if (!cleaned.equals("")){
-                        words.add(clean(piece));
-                    }
+                    words.add(piece.toLowerCase());
                 }
             }
         } catch (IOException e){
@@ -56,10 +57,9 @@ public class CosimilarityMatrix{
         }
     }
 
-    public Set<String> getWords(){
-        return words;
-    }
-
+    /**
+     * Build up the cosimilarity matrix
+     */
     public void buildMatrix(){
         List<String> wordList = new ArrayList<String>();
         int i=0;
@@ -76,9 +76,15 @@ public class CosimilarityMatrix{
         }
     }
 
+    /**
+     * get an sr score between two words
+     * @param word1
+     * @param word2
+     * @return
+     */
     public double sr(String word1, String word2){
-        word1 = clean(word1);
-        word2 = clean(word2);
+        word1 = word1.toLowerCase();
+        word2 = word2.toLowerCase();
         if (matrixBuilt){
             if (matrixLookUp.containsKey(word1)&&matrixLookUp.containsKey(word2)){
                 return matrix[matrixLookUp.get(word1)][matrixLookUp.get(word2)];
@@ -96,11 +102,6 @@ public class CosimilarityMatrix{
                 throw new RuntimeException("WikAPIdia experienced a DAO error.");
             }
         }
-    }
-
-    //Obtained from erickson on StackOverflow
-    private String clean(String word){
-        return word.replaceAll("[^A-Za-z0-9 ]", "").toLowerCase();
     }
 
 }

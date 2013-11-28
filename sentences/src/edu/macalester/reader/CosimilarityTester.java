@@ -6,6 +6,8 @@ public class CosimilarityTester {
     private static String s1 = "werewolf"; //Appears in Satyricon but not Red Badge
     private static String s2 = "gun"; //Appears in Red Badge but not Satyricon
     private static String s3 = "horse"; //Appears in both
+    private static String s4 = "gun";
+    private static String s5 = "powder";
 
     public static void main(String[] args){
         long start = System.currentTimeMillis();
@@ -25,6 +27,7 @@ public class CosimilarityTester {
 
         System.out.println(matrix.sr(s1,s3));
         System.out.println(matrix.sr(s2,s3));
+        System.out.println(matrix.sr(s4,s5));
 
         System.out.println("Took "+((System.currentTimeMillis()-start)/60000)+" minutes");
 

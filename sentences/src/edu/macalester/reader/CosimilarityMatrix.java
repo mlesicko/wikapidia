@@ -1,4 +1,5 @@
 package edu.macalester.reader;
+import gnu.trove.map.hash.TIntDoubleHashMap;
 import org.wikapidia.conf.ConfigurationException;
 import org.wikapidia.conf.Configurator;
 import org.wikapidia.core.cmd.Env;
@@ -6,6 +7,8 @@ import org.wikapidia.core.cmd.EnvBuilder;
 import org.wikapidia.core.dao.DaoException;
 import org.wikapidia.core.lang.Language;
 import org.wikapidia.sr.LocalSRMetric;
+import org.wikapidia.sr.esa.ESAMetric;
+import org.wikapidia.sr.utils.SimUtils;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -17,7 +20,8 @@ public class CosimilarityMatrix{
     private double[][] matrix;
     private Set<String> words;
     private Map<String,Integer> matrixLookUp;
-    LocalSRMetric metric;
+    private TIntDoubleHashMap[] wordVectors;
+    ESAMetric metric;
     Language language;
 
 
@@ -30,7 +34,7 @@ public class CosimilarityMatrix{
         try{
             Env env = new EnvBuilder().build();
             Configurator c = env.getConfigurator();
-            metric = c.get(LocalSRMetric.class,"ESA");
+            metric = (ESAMetric)c.get(LocalSRMetric.class,"ESA");
         } catch (ConfigurationException e){
             throw new RuntimeException("There's a problem with the WikAPIdia configuration");
         }
@@ -57,10 +61,28 @@ public class CosimilarityMatrix{
         }
     }
 
+    public void buildMatrix(){
+        buildLazyMatrix();
+    }
+
+    private void buildNoMatrix(){
+        try{
+            wordVectors=new TIntDoubleHashMap[words.size()];
+            int i=0;
+            for (String word : words){
+                matrixLookUp.put(word,i);
+                wordVectors[i]=metric.getVector(word,language);
+                i++;
+            }
+        } catch (DaoException e){
+            throw new RuntimeException("WikAPIdia experienced a DAO error.");
+        }
+    }
+
     /**
      * Build up the cosimilarity matrix
      */
-    public void buildMatrix(){
+    private void buildMatrixNow(){
         List<String> wordList = new ArrayList<String>();
         int i=0;
         for (String word : words){
@@ -76,13 +98,39 @@ public class CosimilarityMatrix{
         }
     }
 
+    private void buildLazyMatrix(){
+        try{
+            matrix = new double[words.size()][words.size()];
+            for (int i=0; i< words.size(); i++){
+                for (int j=0; j<words.size(); j++){
+                    matrix[i][j]=-1;
+                }
+            }
+
+            wordVectors=new TIntDoubleHashMap[words.size()];
+            int i=0;
+            for (String word : words){
+                matrixLookUp.put(word,i);
+                wordVectors[i]=metric.getVector(word,language);
+                i++;
+            }
+        } catch (DaoException e){
+            throw new RuntimeException("WikAPIdia experienced a DAO error.");
+        }
+
+    }
+
+    public double sr(String word1, String word2){
+        return srLazy(word1,word2);
+    }
+
     /**
      * get an sr score between two words
      * @param word1
      * @param word2
      * @return
      */
-    public double sr(String word1, String word2){
+    private double srNow(String word1, String word2){
         word1 = word1.toLowerCase();
         word2 = word2.toLowerCase();
         if (matrixBuilt){
@@ -102,6 +150,40 @@ public class CosimilarityMatrix{
                 throw new RuntimeException("WikAPIdia experienced a DAO error.");
             }
         }
+    }
+
+    private double srLazy(String word1, String word2){
+        word1 = word1.toLowerCase();
+        word2 = word2.toLowerCase();
+        if (matrixBuilt){
+            if (matrixLookUp.containsKey(word1)&&matrixLookUp.containsKey(word2)){
+                int id1 = matrixLookUp.get(word1);
+                int id2 = matrixLookUp.get(word2);
+                if (matrix[id1][id2]==-1){
+                    matrix[id1][id2]= SimUtils.cosineSimilarity(wordVectors[id1],wordVectors[id2]);
+                }
+                return matrix[id1][id2];
+            } else{
+                if (!matrixLookUp.containsKey(word1)){
+                    throw new IllegalStateException("Matrix built but does not contain "+word1);
+                }else{
+                    throw new IllegalStateException("Matrix built but does not contain "+word2);
+                }
+            }
+        } else{
+            try{
+                return metric.similarity(word1,word2,language,false).getScore();
+            }catch (DaoException e){
+                throw new RuntimeException("WikAPIdia experienced a DAO error.");
+            }
+        }
+    }
+
+    private double srNoMatrix(String word1, String word2){
+        //TODO: implement
+        int id1;
+        int id2;
+        return SimUtils.cosineSimilarity(null, null);
     }
 
 }

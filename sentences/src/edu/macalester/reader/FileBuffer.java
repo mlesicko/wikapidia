@@ -11,13 +11,22 @@ import java.util.regex.Pattern;
 
 public class FileBuffer {
 	
-	private static Pattern spec_char = Pattern.compile("[\"*_,;:^%+=()\\[\\]~`\\{}]");
+	private static Pattern spec_char = Pattern.compile("[\"*_,.;:^%+=()\\[\\]~`\\{}]");
 	private static Pattern spaces = Pattern.compile("\\s+|\\t+");
 	private static Pattern strip = Pattern.compile("^\\s+|\\s+$");
-	private static ArrayList<String> buf_lines;
-	private static String output_file = "output.txt";	// Default output file
+	private static ArrayList<String> buf_lines = null;
+	private static String output_file;
+	private static String input_file;
+	private static String book_name = null;
+
+    public static void clearBuffer(){
+        buf_lines=null;
+    }
 	
 	public static void read(String fname) {
+		
+		formatOutputFile(fname);		// Default output file
+		input_file = fname;
 		
 		ArrayList<String> prev_lines = new ArrayList<String>();
 		buf_lines = new ArrayList<String>();
@@ -26,9 +35,7 @@ public class FileBuffer {
 			String line = null;
 			reader = new BufferedReader(new FileReader(fname));
 			
-			while ((line = reader.readLine()) != null) {
-				// DEBUG: System.out.println("RAW LINE: \t " + line);
-				
+			while ((line = reader.readLine()) != null) {				
 				// Split line into 'sentences' by end-of-line markers
 				String[] lines = line.split("[?!.]");
 				int num_lines = lines.length;
@@ -45,7 +52,6 @@ public class FileBuffer {
 					prev_lines.add(lines[0]);
 					String sentence = makeSentence(prev_lines);
 					buf_lines.add(sentence);
-					// DEBUG: System.out.println("SENTENCE: \t " + sentence);
 					
 					prev_lines = new ArrayList<String>();
 					
@@ -56,7 +62,6 @@ public class FileBuffer {
 						if (i < (num_lines - 1)) {
 							if (sentence.length() != 0) {
 								buf_lines.add(sentence);
-								// DEBUG: System.out.println("SENTENCE: \t " + sentence);
 							}
 							
 						/* The last line of the sentence is not nothing
@@ -118,13 +123,36 @@ public class FileBuffer {
 		return buf_lines;
 	}
 	
-	public static void setOutputFile(String fname) {
-		output_file = fname;
+	public static String bookName() {
+		if (book_name == null) {
+			String[] arr = input_file.split(".");
+			String bname = "";
+			
+			for (int i = 0; i < arr.length; i++) {
+				if (i < (arr.length - 1))
+					bname += arr[i];
+			}
+			book_name = bname;
+		}
+		return book_name;
+	}
+	
+	private static void formatOutputFile(String fname) {
+		String[] arr = fname.split("[.]");
+		output_file = "";
+		int len = arr.length;
+		for (String name : arr) {
+			if (len-- == 1) {
+				output_file += "_out." + name;
+			} else {
+				output_file += name;
+			}
+		}
 	}
 	
 	private static String makeSentence(ArrayList<String> lines) {
 		String sentence = "";
-		
+
 		for (String line : lines)
 			sentence += line + " ";
 		

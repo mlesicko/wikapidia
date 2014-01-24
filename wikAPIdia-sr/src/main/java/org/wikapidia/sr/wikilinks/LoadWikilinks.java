@@ -19,21 +19,25 @@ import java.util.*;
  * @author Matt Lesicko
  **/
 public class LoadWikilinks {
-    Map<Integer,TIntSet> urls;
-    Map<String,TIntSet> domains;
     Map<Integer,TIntSet> pagesToUrls;
-    Map<Integer,Set<String>> pagesToDomains;
+    Map<Integer,TIntSet> pagesToDomains;
+    Map<String, Integer> urlToId;
+    Map<String, Integer> domainNameToId;
     int numURLs;
+    int numDomains;
     int nameFails;
     int formatFails;
     LocalPageDao localPageDao;
 
+    static String dir = "./db/matrix/wikilinks/";
+
     public LoadWikilinks(LocalPageDao localPageDao){
-        urls=new HashMap<Integer,TIntSet>();
-        domains=new HashMap<String,TIntSet>();
-        pagesToDomains = new HashMap<Integer, Set<String>>();
+        pagesToDomains = new HashMap<Integer, TIntSet>();
         pagesToUrls = new HashMap<Integer, TIntSet>();
-        numURLs =0;
+        urlToId = new HashMap<String, Integer>();
+        domainNameToId = new HashMap<String, Integer>();
+        numURLs=0;
+        numDomains=0;
         nameFails=0;
         formatFails=0;
         this.localPageDao = localPageDao;
@@ -94,7 +98,7 @@ public class LoadWikilinks {
                     }
                 }
                 if (mentions.size()>1){
-                    urls.put(numURLs,mentions);
+                    urlToId.put(url,numURLs);
                     for (int mention : mentions.toArray()){
                         if (!pagesToUrls.containsKey(mention)){
                             pagesToUrls.put(mention,new TIntHashSet());
@@ -126,10 +130,18 @@ public class LoadWikilinks {
                             if (id==-1) {
                                 nameFails++;}
                             else{
-                                if (!domains.containsKey(domain)){
-                                    domains.put(domain,new TIntHashSet());
+                                int domainId;
+                                if (domainNameToId.containsKey(domain)){
+                                    domainId=domainNameToId.get(domain);
+                                } else {
+                                    domainNameToId.put(domain,numDomains);
+                                    domainId=numDomains;
+                                    numDomains++;
                                 }
-                                domains.get(domain).add(id);
+                                if (!pagesToDomains.containsKey(id)){
+                                    pagesToDomains.put(id,new TIntHashSet());
+                                }
+                                pagesToDomains.get(id).add(domainId);
                             }
                         } catch (DaoException e){
                             nameFails++;
@@ -143,21 +155,33 @@ public class LoadWikilinks {
         }
     }
 
-    void cleanDomains (){
-        String[] A= new String[0];
-        String[] keys = domains.keySet().toArray(A);
-        for (String key : keys){
-            if (domains.get(key).size()<2){
-                domains.remove(key);
-            } else {
-                for (int id : domains.get(key).toArray()){
-                    if (!pagesToDomains.containsKey(id)){
-                        pagesToDomains.put(id,new HashSet<String>());
-                    }
-                    pagesToDomains.get(id).add(key);
-                }
+    static void write(String location, Object object) throws IOException {
+        new File(dir).mkdirs();
+        FileOutputStream fos = new FileOutputStream(dir+location);
+        ObjectOutputStream oos = new ObjectOutputStream(fos);
+        oos.writeObject(object);
+        oos.close();
+    }
 
-            }
+    public static Map<Integer, TIntSet> readMap(String name) throws IOException{
+        try {
+            FileInputStream fis = new FileInputStream(dir+name);
+            ObjectInputStream ois = new ObjectInputStream(fis);
+            Map<Integer, TIntSet> object = (Map<Integer,TIntSet>) ois.readObject();
+            return object;
+        } catch (ClassNotFoundException e){
+            throw new IOException(e);
+        }
+    }
+
+    public static Map<Integer,String> readNames(String name) throws IOException{
+        try {
+            FileInputStream fis = new FileInputStream(dir+name);
+            ObjectInputStream ois = new ObjectInputStream(fis);
+            Map<Integer, String> object = (Map<Integer,String>) ois.readObject();
+            return object;
+        } catch (ClassNotFoundException e){
+            throw new IOException(e);
         }
     }
 
@@ -186,21 +210,27 @@ public class LoadWikilinks {
         for (int i=0; i<10; i++){
             loader.loadPages(dir + piece1 + i + piece2);
         }
-        System.out.println("urls: "+loader.urls.size());
+        System.out.println("urls: "+loader.urlToId.size());
         System.out.println("pages: "+loader.pagesToUrls.size());
         System.out.println("nameFails: "+loader.nameFails);
         System.out.println("formatFails: "+loader.formatFails);
         System.out.println("time: "+(System.currentTimeMillis()-start1));
+
+        write("urlIds", loader.urlToId);
+        write("pagesToUrls",loader.pagesToUrls);
 //      */
 //      /*
         long start2 = System.currentTimeMillis();
         for (int i=0; i<10; i++){
             loader.loadDomains(dir + piece1 + i + piece2);
         }
-        loader.cleanDomains();
-        System.out.println("domains: "+loader.domains.size());
+        System.out.println("domains: "+loader.domainNameToId.size());
         System.out.println("pages: "+loader.pagesToDomains.size());
         System.out.println("time: "+(System.currentTimeMillis()-start2));
+        new File("./db/matrix/wikilinks/").mkdirs();
+        write("domainIds",loader.domainNameToId);
+        write("pagesToDomains",loader.pagesToDomains);
 //      */
+
     }
 }
